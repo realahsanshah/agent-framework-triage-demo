@@ -1,0 +1,35 @@
+[project]
+name = "agent-framework-triage-demo"
+version = "0.1.0"
+description = "Multi-agent billing/tech-support triage demo built on Microsoft Agent Framework."
+requires-python = ">=3.11"
+dependencies = [
+    "agent-framework",
+    "agent-framework-openai",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["mypy", "ruff"]
+ui = ["streamlit"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["tools", "agents", "triage", "middleware", "workflow", "main", "app"]
+
+[tool.mypy]
+mypy_path = "src"
+explicit_package_bases = true
+strict = true
+warn_unused_ignores = true
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "ANN"]
