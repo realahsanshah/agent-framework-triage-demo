@@ -14,8 +14,8 @@ User message
     v
 triage (keyword classifier)
     |
-    +--"billing"--> billing_agent  (check_balance, issue_refund)
-    +--"tech"-----> tech_agent     (check_system_status, restart_service)
+    +--"billing"--> guardrails_middleware --> billing_agent  (check_balance, issue_refund)
+    +--"tech"-----> guardrails_middleware --> tech_agent     (check_system_status, restart_service)
     +--default----> unclear_intent (asks the user to clarify)
 ```
 
@@ -31,11 +31,43 @@ triage (keyword classifier)
   `create_session()` / `run(messages, session=...)` interface as a single
   `Agent` -- a caller can't tell a multi-agent workflow apart from a plain
   chat agent.
-- One `agent_middleware`-decorated function (`logging_middleware`) is
-  attached to both specialists and logs before/after each agent invocation.
+- Two `agent_middleware`-decorated functions are attached to both
+  specialists: `logging_middleware` logs before/after each agent invocation,
+  and `guardrails_middleware` runs [NeMo Guardrails](https://github.com/NVIDIA-NeMo/Guardrails)
+  checks *before* the specialist agent (or its tools) ever sees the message
+  -- see "Guardrails" below.
 - Model access goes through `OpenAIChatCompletionClient` pointed at
   OpenRouter's OpenAI-compatible endpoint (`base_url` override), so any
   OpenRouter model -- including free ones -- works without code changes.
+
+## Guardrails
+
+`guardrails_middleware` ([src/guardrails.py](src/guardrails.py)) wraps each
+specialist agent the same way `logging_middleware` does -- same
+`call_next()`-interceptor shape -- but it can refuse to call `call_next()` at
+all. Two NeMo Guardrails checks run first, defined in
+[guardrails/config.yml](guardrails/config.yml) and
+[guardrails/rails/*.co](guardrails/rails):
+
+1. **Dialog rails** -- Colang "common expression" flows
+   (`define user express greeting`, `define user attempt jailbreak`, ...)
+   matched by embedding similarity against example utterances, no LLM call
+   needed. A match (greeting, goodbye, jailbreak-style phrasing) returns a
+   canned reply directly -- the specialist agent never runs.
+2. **Input rails** -- `self check input`, an LLM-based policy check
+   (off-topic / instruction-override / profanity) that only runs -- and only
+   costs a model call -- if the dialog rails above didn't already resolve
+   the message.
+
+Either check firing replaces the middleware's `context.result` and returns
+without calling `call_next()`, exactly the short-circuit the middleware
+pattern is built for. A message that passes both checks reaches the
+specialist agent completely normally.
+
+Guardrails' embedding matching (used for the dialog rails) downloads a small
+ONNX model from Hugging Face on first run and caches it locally --
+`fastembed` is the local, torch-free embedding provider NeMo Guardrails uses
+by default.
 
 Run it:
 
@@ -80,6 +112,9 @@ something an LLM planner decides at runtime.
   keyword classifier if the model call fails.
 - **Real backends** for `tools.py` instead of in-memory mock data.
 - Tests around `triage.classify` and the workflow's routing decisions.
+- **Output rails** on the guardrails side -- e.g. a `self check output` /
+  sensitive-data-masking pass over what the specialist agent replies with,
+  symmetric to the input-side checks that exist today.
 
 ## Learning checkpoints (for walking through the code out loud)
 
@@ -94,3 +129,8 @@ something an LLM planner decides at runtime.
   `run()` call on that session -- which is why `billing_agent` sees the full
   conversation on turn 2 even though only `workflow_agent.create_session()`
   was ever called.
+- **`guardrails_middleware`** ([src/guardrails.py](src/guardrails.py)): the
+  same `call_next()` interceptor shape as `logging_middleware`, but it can
+  choose not to call `call_next()` at all -- a NeMo Guardrails check firing
+  short-circuits straight to a canned `context.result`, so the specialist
+  agent and its tools never run for that message.

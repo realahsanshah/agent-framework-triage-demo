@@ -1,0 +1,32 @@
+# "Common expression" flows: small talk that shouldn't be routed to a
+# specialist agent (or its tools) at all. Handled entirely by Colang's
+# canonical-form matching against the example utterances below -- no LLM
+# call needed, same reasoning as keeping triage.py's classifier keyword-based.
+
+define user express greeting
+  "hi"
+  "hello"
+  "hey there"
+  "good morning"
+
+define user express goodbye
+  "bye"
+  "goodbye"
+  "that's all, thanks"
+  "see you later"
+
+define bot express greeting
+  "Hi! I'm the billing/tech support assistant -- tell me what's going on and I'll route you to the right specialist."
+
+define bot express goodbye
+  "Glad I could help. Take care!"
+
+define flow greeting
+  user express greeting
+  bot express greeting
+  stop
+
+define flow goodbye
+  user express goodbye
+  bot express goodbye
+  stop
