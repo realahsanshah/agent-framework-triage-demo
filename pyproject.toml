@@ -7,6 +7,7 @@ dependencies = [
     "agent-framework",
     "agent-framework-openai",
     "python-dotenv",
+    "nemoguardrails",
 ]
 
 [project.optional-dependencies]
@@ -19,7 +20,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-py-modules = ["tools", "agents", "triage", "middleware", "workflow", "main", "app"]
+py-modules = ["tools", "agents", "triage", "middleware", "guardrails", "workflow", "main", "app"]
 
 [tool.mypy]
 mypy_path = "src"

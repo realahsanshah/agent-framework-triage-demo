@@ -11,6 +11,7 @@ from agent_framework import Agent
 from agent_framework.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
 
+from guardrails import guardrails_middleware
 from middleware import logging_middleware
 from tools import check_balance, check_system_status, issue_refund, restart_service
 
@@ -39,7 +40,7 @@ def build_billing_agent() -> Agent:
             "before issuing a refund. Keep replies short and concrete."
         ),
         tools=[check_balance, issue_refund],
-        middleware=[logging_middleware],
+        middleware=[guardrails_middleware, logging_middleware],
     )
 
 
@@ -53,5 +54,5 @@ def build_tech_agent() -> Agent:
             "a service. Keep replies short and concrete."
         ),
         tools=[restart_service, check_system_status],
-        middleware=[logging_middleware],
+        middleware=[guardrails_middleware, logging_middleware],
     )
